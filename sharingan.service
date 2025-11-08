@@ -1,0 +1,19 @@
+[Unit]
+Description=Sharingan Eye Display Service
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/sharinganPi
+ExecStart=/home/pi/sharinganPi/.venv/bin/python /home/pi/sharinganPi/scripts/run_hardware.py /home/pi/sharinganPi/build/left /home/pi/sharinganPi/build/right --loop
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+# Optional: Reduce priority to not interfere with critical system tasks
+Nice=10
+
+[Install]
+WantedBy=multi-user.target
