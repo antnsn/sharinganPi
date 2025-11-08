@@ -10,7 +10,7 @@ Perfect for cosplay helmets, animatronics, or any project needing expressive cir
 
 ```bash
 # Install
-git clone https://github.com/yourusername/sharinganPi.git
+git clone https://github.com/antnsn/sharinganPi.git
 cd sharinganPi
 make install
 source .venv/bin/activate

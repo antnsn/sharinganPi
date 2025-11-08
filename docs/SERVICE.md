@@ -8,7 +8,7 @@ For cosplay or embedded use, you can run Sharingan as a systemd service that sta
 
 ```bash
 cd /home/pi
-git clone https://github.com/yourusername/sharinganPi.git
+git clone https://github.com/antnsn/sharinganPi.git
 cd sharinganPi
 make install
 ```
@@ -96,21 +96,25 @@ sudo nano /etc/systemd/system/sharingan.service
 ### Common Customizations
 
 **Change animation paths:**
+
 ```ini
 ExecStart=/home/pi/sharinganPi/.venv/bin/python /home/pi/sharinganPi/scripts/run_hardware.py /path/to/left /path/to/right --loop
 ```
 
 **Add frame rate control:**
+
 ```ini
 ExecStart=/home/pi/sharinganPi/.venv/bin/python /home/pi/sharinganPi/scripts/run_hardware.py /home/pi/sharinganPi/build/left /home/pi/sharinganPi/build/right --loop --fps 30
 ```
 
 **Change GPIO pins:**
+
 ```ini
 ExecStart=/home/pi/sharinganPi/.venv/bin/python /home/pi/sharinganPi/scripts/run_hardware.py /home/pi/sharinganPi/build/left /home/pi/sharinganPi/build/right --loop --left-dc 25 --right-dc 23
 ```
 
 After editing, reload and restart:
+
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl restart sharingan.service
@@ -135,6 +139,7 @@ Or use a physical button (requires additional GPIO setup).
 ### Quick Power Cycle
 
 For cosplay use, you can simply:
+
 1. Power on the Pi (via battery pack or USB)
 2. Wait ~30 seconds for boot
 3. Eyes start animating automatically
@@ -145,11 +150,13 @@ For cosplay use, you can simply:
 ### Service won't start
 
 Check logs:
+
 ```bash
 sudo journalctl -u sharingan.service -n 100
 ```
 
 Common issues:
+
 - **SPI not enabled**: Run `sudo raspi-config` → Interface Options → SPI
 - **Wrong paths**: Verify paths in service file match your installation
 - **Permissions**: Ensure `pi` user owns the files
@@ -206,11 +213,13 @@ sudo systemctl set-default multi-user.target
 ### 2. Enable Fast Boot
 
 Edit `/boot/config.txt`:
+
 ```bash
 sudo nano /boot/config.txt
 ```
 
 Add:
+
 ```
 # Fast boot
 boot_delay=0
@@ -220,6 +229,7 @@ disable_splash=1
 ### 3. Optimize Service Start
 
 Edit service file to start earlier:
+
 ```ini
 [Unit]
 Description=Sharingan Eye Display Service
@@ -241,6 +251,7 @@ For portable cosplay use:
 ### Power Button (Optional)
 
 Add a shutdown button to GPIO 3 (Pin 5):
+
 - Pressing button triggers safe shutdown
 - No need to SSH or remove power unsafely
 
@@ -262,6 +273,7 @@ sudo systemctl start sharingan.service
 ```
 
 Usage:
+
 ```bash
 ./switch_animation.sh normal
 ./switch_animation.sh activated
