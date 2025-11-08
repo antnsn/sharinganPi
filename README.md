@@ -26,8 +26,18 @@ python scripts/run_emulator.py build/left build/right --loop
 ### Raspberry Pi Hardware
 
 ```bash
+# Clone and install
+git clone https://github.com/antnsn/sharinganPi.git
+cd sharinganPi
+make install
+source .venv/bin/activate
+
 # Enable SPI
 sudo raspi-config  # Interface Options → SPI → Enable
+
+# Convert GIFs (if not done on desktop)
+python scripts/prepare_gif.py gifs/left.gif build/left
+python scripts/prepare_gif.py gifs/right.gif build/right
 
 # Run on displays
 python scripts/run_hardware.py build/left build/right --loop
