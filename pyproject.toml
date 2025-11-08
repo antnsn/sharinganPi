@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sharinganpi"
+version = "0.1.0"
+description = "Display GIF animations on round GC9A01 displays"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "Pillow>=9.0",
+    "python-dotenv>=1.0",
+    "pygame>=2.5",
+]
+
+[project.scripts]
+sharingan-prepare = "scripts.prepare_gif:main"
+sharingan-emulator = "scripts.run_emulator:main"
+
+[tool.setuptools.packages.find]
+include = ["sharingan*", "scripts*"]
