@@ -252,9 +252,9 @@ class GC9A01:
 
         cmd(0x98, [0x3E, 0x07])
 
-        # Tearing effect line, no color inversion
+        # Tearing effect line + display inversion ON (matches CircuitPython GC9A01A)
         cmd(0x35)
-        cmd(0x20)  # INVOFF
+        cmd(CMD_INVON)
 
         # Sleep out & display ON
         self._write_command(CMD_SLPOUT)
@@ -262,10 +262,9 @@ class GC9A01:
         self._write_command(CMD_DISPON)
         time.sleep(0.02)
 
-        # Memory Data Access Control (rotation + BGR color order)
+        # Memory Data Access Control (BGR color order, orientation like CircuitPython driver)
         self._write_command(CMD_MADCTL)
-        rotation_values = {0: 0x08, 90: 0x68, 180: 0xC8, 270: 0xA8}
-        self._write_data([rotation_values.get(self.rotation, 0x08)])
+        self._write_data([0x48])
 
     def set_window(self, x0: int, y0: int, x1: int, y1: int) -> None:
         """Set the pixel address window for writing."""
