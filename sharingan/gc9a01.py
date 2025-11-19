@@ -252,9 +252,9 @@ class GC9A01:
 
         cmd(0x98, [0x3E, 0x07])
 
-        # Tearing effect line & display inversion ON
+        # Tearing effect line, no color inversion
         cmd(0x35)
-        cmd(CMD_INVON)
+        cmd(0x20)  # INVOFF
 
         # Sleep out & display ON
         self._write_command(CMD_SLPOUT)
