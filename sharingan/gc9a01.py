@@ -262,10 +262,10 @@ class GC9A01:
         self._write_command(CMD_DISPON)
         time.sleep(0.02)
 
-        # Memory Data Access Control (rotation)
+        # Memory Data Access Control (rotation + BGR color order)
         self._write_command(CMD_MADCTL)
-        rotation_values = {0: 0x00, 90: 0x60, 180: 0xC0, 270: 0xA0}
-        self._write_data([rotation_values.get(self.rotation, 0x00)])
+        rotation_values = {0: 0x08, 90: 0x68, 180: 0xC8, 270: 0xA8}
+        self._write_data([rotation_values.get(self.rotation, 0x08)])
 
     def set_window(self, x0: int, y0: int, x1: int, y1: int) -> None:
         """Set the pixel address window for writing."""
