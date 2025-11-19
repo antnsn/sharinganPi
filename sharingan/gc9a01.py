@@ -262,9 +262,9 @@ class GC9A01:
         self._write_command(CMD_DISPON)
         time.sleep(0.02)
 
-        # Memory Data Access Control (BGR color order, orientation like CircuitPython driver)
+        # Memory Data Access Control (BGR color order, no mirroring)
         self._write_command(CMD_MADCTL)
-        self._write_data([0x48])
+        self._write_data([0x08])
 
     def set_window(self, x0: int, y0: int, x1: int, y1: int) -> None:
         """Set the pixel address window for writing."""
