@@ -15,9 +15,9 @@ cd sharinganPi
 make install
 source .venv/bin/activate
 
-# Convert your GIFs
-python scripts/prepare_gif.py gifs/left.gif build/left
-python scripts/prepare_gif.py gifs/right.gif build/right
+# Convert GIFs
+python scripts/prepare_gif.py gifs/left.gif build/left --byteorder big --rgb565
+python scripts/prepare_gif.py gifs/right.gif build/right --byteorder big --rgb565
 
 # Preview in emulator
 python scripts/run_emulator.py build/left build/right --loop
@@ -36,8 +36,8 @@ source .venv/bin/activate
 sudo raspi-config  # Interface Options → SPI → Enable
 
 # Convert GIFs (if not done on desktop)
-python scripts/prepare_gif.py gifs/left.gif build/left
-python scripts/prepare_gif.py gifs/right.gif build/right
+python scripts/prepare_gif.py gifs/left.gif  build/left  --byteorder big --rgb565
+python scripts/prepare_gif.py gifs/right.gif build/right --byteorder big --rgb565
 
 # Run on displays
 python scripts/run_hardware.py build/left build/right --loop
