@@ -96,9 +96,16 @@ class GC9A01:
         """Send data bytes to display."""
         GPIO.output(self.dc_pin, GPIO.HIGH)
         if isinstance(data, bytes):
-            self.spi.writebytes(list(data))
+            # Use xfer3 for faster byte transfers without list conversion
+            # Falls back to xfer2 if xfer3 not available
+            if hasattr(self.spi, 'xfer3'):
+                # xfer3 is fastest but may not be available on all systems
+                self.spi.xfer3(list(data))
+            else:
+                # xfer2 is faster than writebytes for large transfers
+                self.spi.xfer2(list(data))
         else:
-            self.spi.writebytes(data)
+            self.spi.xfer2(data)
 
     def _reset(self) -> None:
         """Hardware reset the display."""
@@ -295,11 +302,9 @@ class GC9A01:
         # Set window to full screen
         self.set_window(0, 0, self.width - 1, self.height - 1)
 
-        # Write frame data in chunks for better performance
-        chunk_size = 4096
-        for i in range(0, len(frame_data), chunk_size):
-            chunk = frame_data[i : i + chunk_size]
-            self._write_data(chunk)
+        # Write entire frame at once for maximum performance
+        # SPI can handle large transfers efficiently
+        self._write_data(frame_data)
 
     def clear(self, color: tuple[int, int, int] = (0, 0, 0)) -> None:
         """Clear display to a solid color."""

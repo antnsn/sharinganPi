@@ -7,6 +7,7 @@ import json
 import sys
 import time
 from pathlib import Path
+from threading import Thread
 
 from sharingan.gc9a01 import GC9A01
 
@@ -157,20 +158,31 @@ def main() -> int:
         print(f"Playing {frame_count} frames... (Ctrl+C to stop)")
 
         while running:
+            frame_start = time.perf_counter()
+            
             left_payload, left_duration = left_frames[index % frame_count]
             right_payload, right_duration = right_frames[index % frame_count]
 
-            # Display frames on both screens
-            left_display.display_frame(left_payload)
-            right_display.display_frame(right_payload)
+            # Display frames on both screens in parallel
+            left_thread = Thread(target=left_display.display_frame, args=(left_payload,))
+            right_thread = Thread(target=right_display.display_frame, args=(right_payload,))
+            
+            left_thread.start()
+            right_thread.start()
+            
+            left_thread.join()
+            right_thread.join()
 
-            # Calculate delay
+            # Calculate delay accounting for frame processing time
             if args.fps:
-                delay_ms = 1000 // args.fps
+                target_frame_time = 1.0 / args.fps
             else:
-                delay_ms = min(left_duration, right_duration)
-
-            time.sleep(delay_ms / 1000.0)
+                target_frame_time = min(left_duration, right_duration) / 1000.0
+            
+            elapsed = time.perf_counter() - frame_start
+            delay = max(0, target_frame_time - elapsed)
+            if delay > 0:
+                time.sleep(delay)
 
             index += 1
             if not args.loop and index >= frame_count:

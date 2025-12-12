@@ -98,21 +98,13 @@ class DualEmulator:
         if surface.get_size() != (self.config.diameter, self.config.diameter):
             surface = pygame.transform.smoothscale(surface, (self.config.diameter, self.config.diameter))
         
-        # Draw only the circular portion using the mask as a stencil
-        radius = self.config.diameter // 2
-        center = (radius, radius)
-        
-        # Create output and draw a circle from the source
+        # Create output with background
         output = pygame.Surface((self.config.diameter, self.config.diameter))
         output.fill(self.config.background_color)
         
-        # Use subsurface clipping by drawing circle directly
-        for y in range(self.config.diameter):
-            for x in range(self.config.diameter):
-                dx = x - center[0]
-                dy = y - center[1]
-                if dx*dx + dy*dy <= radius*radius:
-                    output.set_at((x, y), surface.get_at((x, y)))
+        # Blit the surface and apply circular mask efficiently
+        output.blit(surface, (0, 0))
+        output.blit(self.mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
         
         return output
 
