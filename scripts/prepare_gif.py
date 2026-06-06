@@ -9,7 +9,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator
 
-from PIL import Image, ImageOps, ImageSequence
+import numpy as np
+from PIL import Image, ImageSequence
 from dotenv import load_dotenv
 
 try:  # Pillow < 9.1 transitional support
@@ -148,22 +149,13 @@ def prepare_frame(frame: Image.Image, size: tuple[int, int], dither: bool) -> Im
 
 
 def rgb_to_rgb565_bytes(frame: Image.Image, byteorder: str) -> bytes:
-    width, height = frame.size
-    pixels = frame.load()
-    buffer = bytearray(width * height * 2)
-    idx = 0
-    for y in range(height):
-        for x in range(width):
-            r, g, b = pixels[x, y]
-            value = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
-            if byteorder == "little":
-                buffer[idx] = value & 0xFF
-                buffer[idx + 1] = value >> 8
-            else:
-                buffer[idx] = value >> 8
-                buffer[idx + 1] = value & 0xFF
-            idx += 2
-    return bytes(buffer)
+    arr = np.asarray(frame, dtype=np.uint16)  # (height, width, 3)
+    r = arr[:, :, 0]
+    g = arr[:, :, 1]
+    b = arr[:, :, 2]
+    value = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
+    dtype = "<u2" if byteorder == "little" else ">u2"
+    return value.astype(dtype).tobytes()
 
 
 def export_frame(
@@ -198,12 +190,16 @@ def build_metadata(
     size: tuple[int, int],
     frames: list[FrameExport],
     loop: int,
+    rgb565: bool,
+    byteorder: str,
 ) -> dict[str, object]:
     return {
         "source": str(source),
         "size": {"width": size[0], "height": size[1]},
         "frame_count": len(frames),
         "loop": loop,
+        # Only meaningful for packed RGB565 output; consumers default to little.
+        "byteorder": byteorder if rgb565 else None,
         "frames": [frame.__dict__ for frame in frames],
     }
 
@@ -237,7 +233,7 @@ def main() -> None:
             )
             processed_frames.append(exported)
 
-    metadata = build_metadata(args.input_gif, size, processed_frames, loop)
+    metadata = build_metadata(args.input_gif, size, processed_frames, loop, rgb565, byteorder)
     metadata_path = args.output_dir / "metadata.json"
     metadata_path.write_text(json.dumps(metadata, indent=2))
 

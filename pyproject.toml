@@ -12,11 +12,13 @@ dependencies = [
     "Pillow>=9.0",
     "python-dotenv>=1.0",
     "pygame>=2.5",
+    "numpy>=1.21",
 ]
 
 [project.scripts]
 sharingan-prepare = "scripts.prepare_gif:main"
 sharingan-emulator = "scripts.run_emulator:main"
+sharingan-hardware = "scripts.run_hardware:main"
 
 [tool.setuptools.packages.find]
 include = ["sharingan*", "scripts*"]

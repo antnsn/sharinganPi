@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 import time
 from pathlib import Path
 from threading import Thread
 
+from sharingan.frames import prepare_frames
 from sharingan.gc9a01 import GC9A01
 
 
@@ -86,36 +86,12 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_metadata(directory: Path) -> dict:
-    metadata_path = directory / "metadata.json"
-    if not metadata_path.exists():
-        raise FileNotFoundError(f"Missing metadata.json in {directory}")
-    return json.loads(metadata_path.read_text())
-
-
-def load_frame(directory: Path, filename: str) -> bytes:
-    path = directory / filename
-    if not path.exists():
-        raise FileNotFoundError(f"Missing frame {filename} in {directory}")
-    return path.read_bytes()
-
-
-def prepare_frames(directory: Path) -> tuple[list[tuple[bytes, int]], tuple[int, int]]:
-    metadata = load_metadata(directory)
-    size = (metadata["size"]["width"], metadata["size"]["height"])
-    frames: list[tuple[bytes, int]] = []
-    for frame in metadata.get("frames", []):
-        payload = load_frame(directory, frame["filename"])
-        frames.append((payload, frame["duration_ms"]))
-    return frames, size
-
-
 def main() -> int:
     args = parse_args()
 
     # Load frame data
-    left_frames, left_size = prepare_frames(args.left)
-    right_frames, right_size = prepare_frames(args.right)
+    left_frames, left_size, _ = prepare_frames(args.left)
+    right_frames, right_size, _ = prepare_frames(args.right)
     frame_count = min(len(left_frames), len(right_frames))
 
     if frame_count == 0:
@@ -159,7 +135,7 @@ def main() -> int:
 
         while running:
             frame_start = time.perf_counter()
-            
+
             left_payload, left_duration = left_frames[index % frame_count]
             right_payload, right_duration = right_frames[index % frame_count]
 
@@ -178,7 +154,8 @@ def main() -> int:
                 target_frame_time = 1.0 / args.fps
             else:
                 target_frame_time = min(left_duration, right_duration) / 1000.0
-            
+
+            # Subtract transfer time so playback tracks authored timing.
             elapsed = time.perf_counter() - frame_start
             delay = max(0, target_frame_time - elapsed)
             if delay > 0:

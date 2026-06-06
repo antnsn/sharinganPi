@@ -1,5 +1,6 @@
 Pillow>=9.0
 python-dotenv>=1.0
 pygame>=2.5
+numpy>=1.21
 spidev>=3.6
 RPi.GPIO>=0.7.1

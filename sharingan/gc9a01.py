@@ -93,19 +93,13 @@ class GC9A01:
         self.spi.writebytes([cmd])
 
     def _write_data(self, data: bytes | list[int]) -> None:
-        """Send data bytes to display."""
+        """Send data bytes to display.
+
+        ``writebytes2`` accepts bytes/bytearray/lists directly and chunks large
+        buffers internally, avoiding a per-call list copy of full frames.
+        """
         GPIO.output(self.dc_pin, GPIO.HIGH)
-        if isinstance(data, bytes):
-            # Use xfer3 for faster byte transfers without list conversion
-            # Falls back to xfer2 if xfer3 not available
-            if hasattr(self.spi, 'xfer3'):
-                # xfer3 is fastest but may not be available on all systems
-                self.spi.xfer3(list(data))
-            else:
-                # xfer2 is faster than writebytes for large transfers
-                self.spi.xfer2(list(data))
-        else:
-            self.spi.xfer2(data)
+        self.spi.writebytes2(data)
 
     def _reset(self) -> None:
         """Hardware reset the display."""
@@ -269,9 +263,16 @@ class GC9A01:
         self._write_command(CMD_DISPON)
         time.sleep(0.02)
 
-        # Memory Data Access Control (BGR color order, no mirroring)
+        # Memory Data Access Control: BGR color order (0x08) plus rotation.
         self._write_command(CMD_MADCTL)
-        self._write_data([0x08])
+        self._write_data([self._madctl()])
+
+    # MADCTL orientation bits (MV/MX/MY) per rotation, ORed with BGR (0x08).
+    _ROTATION_BITS = {0: 0x00, 90: 0x60, 180: 0xC0, 270: 0xA0}
+
+    def _madctl(self) -> int:
+        """Compute the MADCTL byte for the configured rotation."""
+        return self._ROTATION_BITS.get(self.rotation, 0x00) | 0x08
 
     def set_window(self, x0: int, y0: int, x1: int, y1: int) -> None:
         """Set the pixel address window for writing."""
@@ -302,8 +303,7 @@ class GC9A01:
         # Set window to full screen
         self.set_window(0, 0, self.width - 1, self.height - 1)
 
-        # Write entire frame at once for maximum performance
-        # SPI can handle large transfers efficiently
+        # writebytes2 streams the whole buffer, chunking internally.
         self._write_data(frame_data)
 
     def clear(self, color: tuple[int, int, int] = (0, 0, 0)) -> None:
