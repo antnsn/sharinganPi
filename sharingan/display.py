@@ -6,42 +6,43 @@ import os
 from dataclasses import dataclass
 from typing import Iterable, Iterator, Tuple
 
+import numpy as np
 import pygame
 
 __all__ = ["EmulatorConfig", "DualEmulator", "pump_events", "should_exit"]
 
 
-def rgb565_to_surface(payload: bytes, width: int, height: int) -> pygame.Surface:
-    """Convert packed RGB565 bytes into a Pygame surface."""
+def rgb565_to_surface(
+    payload: bytes, width: int, height: int, byteorder: str = "little"
+) -> pygame.Surface:
+    """Convert packed RGB565 bytes into a Pygame surface (vectorized)."""
 
-    surface = pygame.Surface((width, height))
-    pixels = pygame.PixelArray(surface)
-    idx = 0
-    for y in range(height):
-        for x in range(width):
-            lo = payload[idx]
-            hi = payload[idx + 1]
-            idx += 2
-            value = (hi << 8) | lo
-            r = (value >> 11) & 0x1F
-            g = (value >> 5) & 0x3F
-            b = value & 0x1F
-            r = (r << 3) | (r >> 2)
-            g = (g << 2) | (g >> 4)
-            b = (b << 3) | (b >> 2)
-            pixels[x][y] = (r << 16) | (g << 8) | b
-    del pixels
-    return surface
+    dtype = "<u2" if byteorder == "little" else ">u2"
+    value = np.frombuffer(payload, dtype=dtype).reshape((height, width)).astype(np.uint32)
+
+    r = (value >> 11) & 0x1F
+    g = (value >> 5) & 0x3F
+    b = value & 0x1F
+    # Expand 5/6-bit channels back to full 8-bit range.
+    r = ((r << 3) | (r >> 2)).astype(np.uint8)
+    g = ((g << 2) | (g >> 4)).astype(np.uint8)
+    b = ((b << 3) | (b >> 2)).astype(np.uint8)
+
+    rgb = np.dstack((r, g, b))  # (height, width, 3), row-major
+    return pygame.image.frombuffer(rgb.tobytes(), (width, height), "RGB")
 
 
-def build_round_mask(diameter: int) -> pygame.Surface:
-    """Create a circular stencil - black outside circle, white inside."""
+def build_circle_alpha(diameter: int) -> pygame.Surface:
+    """Create a circular alpha stencil: opaque white inside, transparent outside.
+
+    Blitting this onto an eye surface with ``BLEND_RGBA_MULT`` keeps the eye's
+    colors inside the circle while zeroing alpha outside it.
+    """
     radius = diameter // 2
-    mask = pygame.Surface((diameter, diameter))
-    mask.fill((0, 0, 0))  # Black background
-    pygame.draw.circle(mask, (255, 255, 255), (radius, radius), radius)
-    mask.set_colorkey((0, 0, 0))  # Make black transparent
-    return mask
+    circle = pygame.Surface((diameter, diameter), pygame.SRCALPHA)
+    circle.fill((255, 255, 255, 0))
+    pygame.draw.circle(circle, (255, 255, 255, 255), (radius, radius), radius)
+    return circle
 
 
 @dataclass(frozen=True)
@@ -91,22 +92,21 @@ class DualEmulator:
         # Enable per-pixel alpha for transparency
         self.window.set_alpha(None)
 
-        self.mask = build_round_mask(config.diameter)
+        self.circle_alpha = build_circle_alpha(config.diameter)
 
-    def _render_eye(self, payload: bytes, size: Tuple[int, int]) -> pygame.Surface:
-        surface = rgb565_to_surface(payload, *size)
-        if surface.get_size() != (self.config.diameter, self.config.diameter):
-            surface = pygame.transform.smoothscale(surface, (self.config.diameter, self.config.diameter))
-        
-        # Create output with background
-        output = pygame.Surface((self.config.diameter, self.config.diameter))
-        output.fill(self.config.background_color)
-        
-        # Blit the surface and apply circular mask efficiently
-        output.blit(surface, (0, 0))
-        output.blit(self.mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-        
-        return output
+    def _render_eye(
+        self, payload: bytes, size: Tuple[int, int], byteorder: str
+    ) -> pygame.Surface:
+        diameter = self.config.diameter
+        surface = rgb565_to_surface(payload, *size, byteorder)
+        if surface.get_size() != (diameter, diameter):
+            surface = pygame.transform.smoothscale(surface, (diameter, diameter))
+
+        # Stencil to a circle: keep colors inside, zero alpha outside so the
+        # window background shows through the corners.
+        surface = surface.convert_alpha()
+        surface.blit(self.circle_alpha, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        return surface
 
     def show_pair(
         self,
@@ -115,19 +115,25 @@ class DualEmulator:
         left_size: Tuple[int, int],
         right_size: Tuple[int, int],
         duration_ms: int,
+        left_byteorder: str = "little",
+        right_byteorder: str = "little",
     ) -> bool:
+        start = pygame.time.get_ticks()
+
         events = list(pump_events())
         if should_exit(events):
             return False
 
         # Fill with background color to show non-circular areas
         self.window.fill(self.config.background_color)
-        
-        left_surface = self._render_eye(left_payload, left_size)
-        right_surface = self._render_eye(right_payload, right_size)
+
+        left_surface = self._render_eye(left_payload, left_size, left_byteorder)
+        right_surface = self._render_eye(right_payload, right_size, right_byteorder)
         self.window.blit(left_surface, (0, 0))
         self.window.blit(right_surface, (self.config.diameter + self.config.gap, 0))
         pygame.display.flip()
 
-        pygame.time.wait(max(duration_ms, 16))
+        # Subtract render time so playback tracks the authored frame durations.
+        elapsed = pygame.time.get_ticks() - start
+        pygame.time.wait(max(duration_ms - elapsed, 0))
         return True
